@@ -1,0 +1,20 @@
+library(arules)
+library(arulesViz)
+data("Groceries")
+print(Groceries)
+summary(Groceries)
+rules<-apriori(Groceries,parameter=list(supp=0.005,conf=0.2,minlen=2))
+print(rules)
+rules_df<-as(rules,"data.frame")
+rules_df$support<-quality(rules)$support
+rules_df$confidence<-quality(rules)$confidence
+rules_df$lift<-quality(rules)$lift
+print(head(rules_df[order(-rules_df$lift),],10))
+strong_rules<-subset(rules,confidence>0.4 & lift>1.2)
+print(strong_rules)
+plot(strong_rules,method="grouped")
+top_rules<-head(sort(strong_rules,by="lift"),3)
+inspect(top_rules)
+plot(rules,measure=c("support","confidence"),shading="lift")
+cat("Number of Rules =",length(rules),"\n")
+cat("Number of Strong Rules =",length(strong_rules),"\n")

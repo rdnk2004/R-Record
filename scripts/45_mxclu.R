@@ -1,0 +1,24 @@
+library(cluster)
+library(factoextra)
+set.seed(123)
+mixed_data<-data.frame(
+  Age=c(22,25,28,35,40,45,50,55,60,30,33,48),
+  Income=c(25000,28000,32000,45000,52000,60000,70000,75000,80000,38000,42000,65000),
+  Gender=factor(c("Male","Female","Female","Male","Female","Male","Female","Male","Female","Male","Female","Male")),
+  Department=factor(c("Sales","Sales","HR","IT","IT","Finance","HR","Finance","IT","Sales","HR","Finance")),
+  row.names=paste0("P",1:12))
+print(mixed_data)
+gower_dist<-daisy(mixed_data,metric="gower")
+print(gower_dist)
+pam_model<-pam(gower_dist,k=3,diss=TRUE)
+print(pam_model)
+mixed_data$Cluster<-factor(pam_model$clustering)
+print(mixed_data)
+fviz_cluster(
+  list(data=scale(mixed_data[,c("Age","Income")]),cluster=pam_model$clustering),
+  geom="point",
+  main="PAM Clustering of Mixed-Type Data"
+)
+print(aggregate(cbind(Age,Income)~Cluster,data=mixed_data,FUN=mean))
+print(table(mixed_data$Cluster,mixed_data$Gender))
+print(table(mixed_data$Cluster,mixed_data$Department))

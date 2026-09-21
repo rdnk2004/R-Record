@@ -1,0 +1,57 @@
+library(rpart)
+library(rpart.plot)
+library(e1071)
+library(class)
+library(randomForest)
+library(caret)
+data(iris)
+set.seed(123)
+train_index<-sample(1:nrow(iris),size=0.8*nrow(iris))
+train_data<-iris[train_index,]
+test_data<-iris[-train_index,]
+dt_model<-rpart(Species~.,data=train_data,method="class")
+dt_pred<-predict(dt_model,test_data,type="class")
+dt_cm<-confusionMatrix(dt_pred,test_data$Species)
+nb_model<-naiveBayes(Species~.,data=train_data)
+nb_pred<-predict(nb_model,test_data)
+nb_cm<-confusionMatrix(nb_pred,test_data$Species)
+train_x<-scale(train_data[,1:4])
+test_x<-scale(test_data[,1:4],
+              center=attr(train_x,"scaled:center"),
+              scale=attr(train_x,"scaled:scale"))
+svm_train<-data.frame(train_x,Species=train_data$Species)
+svm_test<-data.frame(test_x,Species=test_data$Species)
+svm_model<-svm(Species~.,data=svm_train,kernel="radial")
+svm_pred<-predict(svm_model,svm_test)
+svm_cm<-confusionMatrix(svm_pred,svm_test$Species)
+knn_pred<-knn(train=train_x,test=test_x,cl=train_data$Species,k=5)
+knn_cm<-confusionMatrix(knn_pred,test_data$Species)
+rf_model<-randomForest(Species~.,data=train_data,ntree=100,importance=TRUE)
+rf_pred<-predict(rf_model,test_data)
+rf_cm<-confusionMatrix(rf_pred,test_data$Species)
+get_metrics<-function(cm){
+  c(
+    Accuracy=as.numeric(cm$overall["Accuracy"]),
+    Precision=mean(cm$byClass[,"Precision"],na.rm=TRUE),
+    Recall=mean(cm$byClass[,"Recall"],na.rm=TRUE),
+    F1=mean(cm$byClass[,"F1"],na.rm=TRUE)
+  )
+}
+comparison<-rbind(
+  Decision_Tree=get_metrics(dt_cm),
+  Naive_Bayes=get_metrics(nb_cm),
+  SVM=get_metrics(svm_cm),
+  KNN=get_metrics(knn_cm),
+  Random_Forest=get_metrics(rf_cm))
+comparison<-as.data.frame(comparison)
+print(comparison)
+print(dt_cm$table)
+print(nb_cm$table)
+print(svm_cm$table)
+print(knn_cm$table)
+print(rf_cm$table)
+barplot(comparison$Accuracy,
+        names.arg=rownames(comparison),
+        main="Classification Model Accuracy",
+        ylab="Accuracy",
+        las=2)

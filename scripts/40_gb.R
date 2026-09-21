@@ -1,0 +1,49 @@
+library(gbm)
+library(caret)
+data(iris)
+print(head(iris,10))
+str(iris)
+summary(iris)
+set.seed(123)
+train_index<-sample(1:nrow(iris),size=0.8*nrow(iris))
+train_data<-iris[train_index,]
+test_data<-iris[-train_index,]
+train_data$Species<-as.numeric(train_data$Species)-1
+test_data$Species<-as.numeric(test_data$Species)-1
+model<-gbm(
+  Species~Sepal.Length+Sepal.Width+Petal.Length+Petal.Width,
+  data=train_data,
+  distribution="multinomial",
+  n.trees=100,
+  interaction.depth=3,
+  shrinkage=0.1,
+  n.minobsinnode=10,
+  verbose=FALSE)
+print(model)
+predictions<-predict(
+  model,
+  newdata=test_data,
+  n.trees=100,
+  type="response")
+predicted_class<-max.col(predictions)-1
+actual_class<-test_data$Species
+predicted_factor<-factor(
+  predicted_class,
+  levels=0:2,
+  labels=levels(iris$Species))
+actual_factor<-factor(
+  actual_class,
+  levels=0:2,
+  labels=levels(iris$Species))
+confusion_matrix<-confusionMatrix(predicted_factor,actual_factor)
+print(confusion_matrix)
+accuracy<-confusion_matrix$overall["Accuracy"]
+cat("Accuracy =",round(accuracy,4),"\n")
+importance<-summary(model,plotit=FALSE)
+print(importance)
+plot(
+  model,
+  i=1,
+  n.trees=100,
+  main="Gradient Boosting Variable Importance")
+cat("Most Important Predictor =",importance$var[1],"\n")

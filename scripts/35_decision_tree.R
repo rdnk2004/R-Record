@@ -1,0 +1,33 @@
+library(rpart)
+library(rpart.plot)
+library(caret)
+data(iris)
+print(head(iris,10))
+str(iris)
+summary(iris)
+dim(iris)
+set.seed(123)
+train_index<-sample(1:nrow(iris),size=0.8*nrow(iris))
+train_data<-iris[train_index,]
+test_data<-iris[-train_index,]
+model<-rpart(Species~Sepal.Length+Sepal.Width+Petal.Length+Petal.Width,
+             data=train_data,
+             method="class")
+print(model)
+rpart.plot(model)
+predictions<-predict(model,test_data,type="class")
+confusion_matrix<-table(
+  Actual=test_data$Species,
+  Predicted=predictions
+)
+print(confusion_matrix)
+accuracy<-sum(diag(confusion_matrix))/sum(confusion_matrix)
+print(accuracy)
+cat("Accuracy =",round(accuracy*100,2),"%\n")
+importance<-model$variable.importance
+print(importance)
+barplot(importance,
+        main="Variable Importance",
+        xlab="Features",
+        ylab="Importance",
+        las=2)

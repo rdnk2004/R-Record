@@ -1,0 +1,71 @@
+library(ggplot2)
+library(pROC)
+data<-read.csv("data/HR_Emp_churn.csv",stringsAsFactors=FALSE)
+names(data)<-trimws(names(data))
+data<-unique(data)
+print(dim(data))
+print(head(data))
+print(summary(data))
+print(colSums(is.na(data)))
+for(i in names(data)){
+  if(is.numeric(data[[i]])){
+    data[[i]][is.na(data[[i]])]<-median(data[[i]],na.rm=TRUE)
+  }else{
+    data[[i]]<-trimws(tolower(data[[i]]))
+    mode_value<-names(which.max(table(data[[i]])))
+    data[[i]][is.na(data[[i]])|data[[i]]==""]<-mode_value
+  }
+}
+data$Departments<-factor(data$Departments)
+data$salary<-factor(data$salary)
+data$left<-as.integer(data$left)
+print(table(data$left))
+ggplot(data,aes(x=factor(left),fill=factor(left)))+
+  geom_bar()+
+  labs(title="Employee Churn Distribution",x="Left (0=No, 1=Yes)",y="Employees")
+ggplot(data,aes(x=factor(left),y=satisfaction_level,fill=factor(left)))+
+  geom_boxplot()+
+  labs(title="Satisfaction Level vs Churn",x="Left",y="Satisfaction Level")
+ggplot(data,aes(x=salary,fill=factor(left)))+
+  geom_bar(position="fill")+
+  labs(title="Churn by Salary",x="Salary",y="Proportion",fill="Left")
+ggplot(data,aes(x=Departments,fill=factor(left)))+
+  geom_bar(position="fill")+
+  labs(title="Churn by Department",x="Department",y="Proportion",fill="Left")+
+  theme(axis.text.x=element_text(angle=45,hjust=1))
+set.seed(123)
+train_index<-sample(seq_len(nrow(data)),size=0.8*nrow(data))
+train_data<-data[train_index,]
+test_data<-data[-train_index,]
+model<-glm(left~.,data=train_data,family=binomial)
+print(summary(model))
+probabilities<-predict(model,newdata=test_data,type="response")
+predictions<-ifelse(probabilities>=0.5,1,0)
+confusion_matrix<-table(
+  Actual=factor(test_data$left,levels=c(0,1)),
+  Predicted=factor(predictions,levels=c(0,1)))
+print(confusion_matrix)
+tn<-confusion_matrix[1,1]
+fp<-confusion_matrix[1,2]
+fn<-confusion_matrix[2,1]
+tp<-confusion_matrix[2,2]
+accuracy<-(tp+tn)/sum(confusion_matrix)
+precision<-ifelse(tp+fp==0,0,tp/(tp+fp))
+recall<-ifelse(tp+fn==0,0,tp/(tp+fn))
+f1<-ifelse(precision+recall==0,0,2*precision*recall/(precision+recall))
+roc_model<-roc(test_data$left,probabilities,quiet=TRUE)
+auc_value<-auc(roc_model)
+cat("Accuracy:",round(accuracy,4),"\n")
+cat("Precision:",round(precision,4),"\n")
+cat("Recall:",round(recall,4),"\n")
+cat("F1 Score:",round(f1,4),"\n")
+cat("ROC-AUC:",round(as.numeric(auc_value),4),"\n")
+results<-data.frame(
+  Actual=test_data$left,
+  Predicted=predictions,
+  Churn_Probability=round(probabilities,4))
+print(head(results,20))
+write.csv(results,"output/Employee_Churn_Predictions.csv",row.names=FALSE)
+coefficients<-coef(model)[-1]
+print(sort(abs(coefficients),decreasing=TRUE))
+print(exp(coef(model)))
